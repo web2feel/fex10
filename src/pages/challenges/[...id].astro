@@ -1,0 +1,80 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getChallenges } from '../../lib/content';
+import { phaseById } from '../../data/phases';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const all = await getChallenges();
+  return all.map((challenge) => ({ params: { id: challenge.id }, props: { challenge } }));
+}
+const { challenge } = Astro.props;
+const { Content } = await render(challenge);
+const phase = phaseById(challenge.data.phase);
+---
+
+<Base title={challenge.data.title} description={challenge.data.summary}>
+  <div style={`--phase:${phase.color}`}>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href={url('/')}>Home</a> / <a href={url(`/phase/${phase.slug}/`)}>Phase {phase.id}</a>{' / '}
+      <span aria-current="page">{challenge.data.title}</span>
+    </nav>
+    <p class="eyebrow" style="margin-top:1rem">Coding challenge · Phase {phase.id}</p>
+    <h1>{challenge.data.title}</h1>
+    <p class="lead">{challenge.data.summary}</p>
+    <p>
+      <span class={`tag ${challenge.data.difficulty}`}>{challenge.data.difficulty}</span>
+      <span class="tag">⏱ {challenge.data.timeLimit}</span>
+    </p>
+
+    <div class="card" style="margin:1.5rem 0;max-width:72ch" data-timer-card>
+      <p class="eyebrow">Practice under exam conditions</p>
+      <div class="quiz-top" style="margin:0.5rem 0 0">
+        <span class="timer" data-timer aria-live="off">{challenge.data.timeLimit}</span>
+        <div class="btn-row" style="margin:0">
+          <button class="btn secondary" type="button" data-timer-start data-minutes={parseInt(challenge.data.timeLimit)}>Start timer</button>
+          <button class="btn complete-btn" type="button" aria-pressed="false" data-complete={challenge.id}>Mark as passed</button>
+        </div>
+      </div>
+    </div>
+
+    <article class="prose">
+      <Content />
+    </article>
+  </div>
+
+  <script>
+    import { load, toggle } from '../../lib/progress';
+    const btn = document.querySelector<HTMLButtonElement>('[data-complete]')!;
+    const id = btn.dataset.complete!;
+    const paint = (done: boolean) => {
+      btn.setAttribute('aria-pressed', String(done));
+      btn.textContent = done ? '✓ Passed' : 'Mark as passed';
+    };
+    paint(!!load().challenges[id]);
+    btn.addEventListener('click', () => paint(toggle('challenges', id)));
+
+    const startBtn = document.querySelector<HTMLButtonElement>('[data-timer-start]')!;
+    const timerEl = document.querySelector<HTMLElement>('[data-timer]')!;
+    let handle: number | undefined;
+    startBtn.addEventListener('click', () => {
+      if (handle) {
+        clearInterval(handle); handle = undefined;
+        startBtn.textContent = 'Restart timer';
+        return;
+      }
+      const end = Date.now() + Number(startBtn.dataset.minutes) * 60_000;
+      startBtn.textContent = 'Stop timer';
+      const tick = () => {
+        const left = Math.max(0, end - Date.now());
+        const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+        timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        timerEl.classList.toggle('low', left < 5 * 60_000);
+        if (left === 0) { clearInterval(handle); handle = undefined; timerEl.textContent = "Time's up"; startBtn.textContent = 'Restart timer'; }
+      };
+      tick();
+      handle = window.setInterval(tick, 1000);
+    });
+  </script>
+</Base>

@@ -1,0 +1,78 @@
+title: "Phase 1 Quiz: HTML, CSS & SCSS"
+phase: 1
+passMark: 80
+timeLimitMinutes: 15
+questions:
+  - q: "What is the specificity of `:is(#nav, .menu) a:hover`?"
+    options: ["(0,2,1)", "(1,1,1)", "(1,2,1)", "(0,1,2)"]
+    answer: 1
+    explain: "`:is()` takes the specificity of its most specific argument, `#nav` (1,0,0). Add `:hover` (0,1,0) and `a` (0,0,1) to get (1,1,1)."
+
+  - q: "What is the specificity of `:where(#app .card) p`?"
+    options: ["(1,1,1)", "(0,0,1)", "(0,1,1)", "(0,0,0)"]
+    answer: 1
+    explain: "`:where()` always contributes zero specificity, so only the `p` counts: (0,0,1)."
+
+  - q: "Given the code below, what padding does `#sidebar .card.p-0` get?"
+    code: |
+      @layer components, utilities;
+      @layer components { #sidebar .card { padding: 2rem; } }
+      @layer utilities  { .p-0 { padding: 0; } }
+    options: ["2rem, because the ID selector has higher specificity", "0, because later layers win before specificity is compared", "2rem, because components was declared first", "It depends on source order inside each layer"]
+    answer: 1
+    explain: "Layer order is checked before specificity. `utilities` is declared after `components`, so it wins regardless of the ID selector."
+
+  - q: "For `!important` declarations in cascade layers, which layer wins?"
+    options: ["The last-declared layer", "The first-declared layer", "Unlayered styles always win", "The one with highest specificity"]
+    answer: 1
+    explain: "Importance reverses layer order: `!important` in an earlier layer beats `!important` in a later layer (and beats unlayered `!important`)."
+
+  - q: "Which grid definition stretches items to fill the row when there are fewer items than would fit?"
+    options: ["repeat(auto-fill, minmax(200px, 1fr))", "repeat(auto-fit, minmax(200px, 1fr))", "repeat(4, 200px)", "repeat(auto-fill, 200px)"]
+    answer: 1
+    explain: "`auto-fit` collapses empty tracks to 0, so the `1fr` maximums share all the space. `auto-fill` keeps the empty tracks."
+
+  - q: "A flex item containing a long URL overflows its container. What is the most direct fix?"
+    options: ["flex-shrink: 1", "min-width: 0 on the flex item", "overflow: hidden on the container", "flex-basis: 0"]
+    answer: 1
+    explain: "Flex items default to `min-width: auto` (their min-content size), so they can't shrink below their content. `min-width: 0` (plus `overflow-wrap`) fixes it."
+
+  - q: "Which approach hides an element visually but keeps it available to screen readers?"
+    options: ["display: none", "visibility: hidden", "aria-hidden=\"true\"", "A clip-path 'visually-hidden' utility"]
+    answer: 3
+    explain: "`display:none` and `visibility:hidden` remove the element from the accessibility tree, and `aria-hidden` hides it from AT while it stays visible. The visually-hidden clip pattern hides it visually only."
+
+  - q: "Which statement about `<dialog>` opened with `showModal()` is FALSE?"
+    options: ["It closes on Esc by default", "It renders a ::backdrop", "The rest of the page becomes inert", "Focus automatically returns to the trigger only if you add aria-modal"]
+    answer: 3
+    explain: "Modal dialogs close on Esc, get a `::backdrop` and make the rest of the page inert. Focus restoration doesn't depend on `aria-modal`; browsers generally return focus to the previously focused element when the dialog closes, and you can also do it explicitly."
+
+  - q: "A `<section>` element maps to the `region` landmark when..."
+    options: ["Always", "It has an accessible name (e.g. aria-labelledby)", "It contains a heading", "It is a direct child of <main>"]
+    answer: 1
+    explain: "A `<section>` is only exposed as a `region` landmark when it has an accessible name."
+
+  - q: "What does `var(--gap)` resolve to if `--gap` is not defined anywhere and no fallback is given, on `margin: var(--gap)`?"
+    options: ["The previous valid margin declaration in the cascade", "The property's inherited or initial value (invalid at computed-value time)", "0", "The browser ignores the whole rule set"]
+    answer: 1
+    explain: "The declaration is valid at parse time but invalid at computed-value time, so the property becomes `unset` (inherit or initial). The cascade does NOT fall back to an earlier declaration."
+
+  - q: "In Dart Sass, what is the main benefit of `@use` over `@import`?"
+    options: ["It is faster to type", "Members are namespaced and each module is loaded once", "It allows nesting", "It lets you use CSS custom properties"]
+    answer: 1
+    explain: "`@use` namespaces members, loads each module only once (no duplicated CSS), and supports private members and configuration via `with()`. `@import` is deprecated."
+
+  - q: "Which Sass feature should you use to return a computed value such as converting px to rem?"
+    options: ["@mixin", "%placeholder with @extend", "@function", "@forward"]
+    answer: 2
+    explain: "Functions return values via `@return`. Mixins emit declarations or rules, and placeholders share selectors."
+
+  - q: "Which selector styles a `.field` whose input has been interacted with and is invalid?"
+    options: [".field:invalid", ".field:has(input:user-invalid)", ".field input:required", ".field:focus-within:invalid"]
+    answer: 1
+    explain: "`:user-invalid` only matches after user interaction, and `:has()` lets the parent react to the child's state."
+
+  - q: "Why is `font-size: 4vw` an accessibility problem?"
+    options: ["vw units are not supported in Safari", "It doesn't scale with user zoom / default font size", "It causes layout shift", "It breaks container queries"]
+    answer: 1
+    explain: "Pure viewport units ignore browser zoom and user font settings (WCAG 1.4.4). Combine them with rem inside `clamp()`."

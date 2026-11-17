@@ -1,0 +1,78 @@
+title: "Phase 4 Quiz: Redux"
+phase: 4
+passMark: 80
+timeLimitMinutes: 15
+questions:
+  - q: "Which is NOT one of Redux's three core principles?"
+    options: ["Single source of truth", "State is read-only", "Changes are made with pure functions", "Every component must connect to the store"]
+    answer: 3
+    explain: "The three principles are: a single store, read-only state changed only by actions, and pure reducers."
+
+  - q: "What's wrong with this RTK reducer?"
+    code: |
+      todoAdded: (state, action) => state.items.push(action.payload)
+    options: ["Nothing; Immer allows mutation", "The arrow returns push()'s numeric result, so Immer sees both a mutation and a return value and throws", "push is not allowed in Immer", "The action has no type"]
+    answer: 1
+    explain: "With concise arrow syntax, the reducer returns the new length. Immer forbids mutating the draft and returning a different value. Use braces."
+
+  - q: "Inside a `createSlice` case reducer, what does `state = initialState` do?"
+    options: ["Resets the slice", "Nothing, because it only reassigns a local variable", "Throws an error", "Resets the whole store"]
+    answer: 1
+    explain: "Reassigning the parameter doesn't touch the draft. To replace state, `return initialState`."
+
+  - q: "What is the middleware signature?"
+    options: ["(action) => (store) => next", "store => next => action => …", "(state, action) => newState", "next => store => action"]
+    answer: 1
+    explain: "Redux middleware is curried as `store => next => action`. Call `next(action)` to pass the action along."
+
+  - q: "Which actions does `createAsyncThunk('posts/fetch', …)` dispatch on success?"
+    options: ["posts/fetch and posts/fetch/done", "posts/fetch/pending, then posts/fetch/fulfilled", "posts/fetch/start, then posts/fetch/success", "Only posts/fetch/fulfilled"]
+    answer: 1
+    explain: "It always dispatches `pending` and then either `fulfilled` or `rejected`."
+
+  - q: "What does `.unwrap()` on a dispatched thunk do?"
+    options: ["Removes the thunk middleware", "Returns the fulfilled payload or throws the rejected value", "Converts the action to JSON", "Cancels the request"]
+    answer: 1
+    explain: "`unwrap()` lets components use try/catch on the real result instead of inspecting the returned action."
+
+  - q: "What triggers a component using `useSelector` to re-render?"
+    options: ["Any dispatched action", "The selector's return value changing by reference (===)", "Any change anywhere in the store", "Only actions from the same slice"]
+    answer: 1
+    explain: "The selector runs after every action, but the component re-renders only if the result is not `===` the previous one."
+
+  - q: "Why is this selector a performance problem when used with `useSelector`?"
+    code: |
+      const selectDone = state => state.todos.items.filter(t => t.done);
+    options: ["filter is slow", "It returns a new array every time, forcing a re-render after every action", "It mutates state", "Selectors can't use filter"]
+    answer: 1
+    explain: "A new reference each call means `useSelector` always sees a change. Memoise it with `createSelector`."
+
+  - q: "When does a `createSelector` output function re-run?"
+    options: ["Every time the selector is called", "Only when one of its input selector results changes by reference", "Only when the whole state changes", "Never; it runs once"]
+    answer: 1
+    explain: "Reselect compares input results by reference and returns the cached output if none of them changed."
+
+  - q: "What shape does `createEntityAdapter().getInitialState()` produce?"
+    options: ["{ items: [] }", "{ ids: [], entities: {} }", "{ byId: {}, allIds: [] }", "[]"]
+    answer: 1
+    explain: "Entity adapters use the normalised `{ ids, entities }` shape and provide CRUD reducers and selectors for it."
+
+  - q: "In RTK Query, what is the difference between `isLoading` and `isFetching`?"
+    options: ["They are aliases", "isLoading is true only for the first fetch with no data; isFetching is true for any in-flight request", "isFetching is only for mutations", "isLoading includes background refetches"]
+    answer: 1
+    explain: "Use `isLoading` for an initial skeleton and `isFetching` for subtle indicators during refetches."
+
+  - q: "How does RTK Query know to refetch `getPosts` after `addPost` succeeds?"
+    options: ["It refetches every query after any mutation", "getPosts providesTags ['Post'], and addPost invalidatesTags ['Post']", "You must call refetch() manually", "Through createSelector"]
+    answer: 1
+    explain: "Queries provide tags and mutations invalidate them. Active queries with invalidated tags refetch automatically."
+
+  - q: "In an optimistic update, how do you roll back if the request fails?"
+    options: ["Dispatch a reset action", "Call patchResult.undo() from the updateQueryData result in the catch block", "Call refetch()", "Throw from the reducer"]
+    answer: 1
+    explain: "`dispatch(api.util.updateQueryData(...))` returns a patch result with `.undo()`. Await `queryFulfilled` and undo on failure."
+
+  - q: "How long does RTK Query keep cached data after the last subscribing component unmounts, by default?"
+    options: ["0 seconds", "60 seconds", "5 minutes", "Forever"]
+    answer: 1
+    explain: "The default `keepUnusedDataFor` is 60 seconds."

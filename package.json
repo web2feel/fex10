@@ -1,0 +1,20 @@
+{
+  "name": "frontend-mastery",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.9",
+    "astro": "^7.4.12"
+  },
+  "type": "module"
+}

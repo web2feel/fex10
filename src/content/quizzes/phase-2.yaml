@@ -1,0 +1,114 @@
+title: "Phase 2 Quiz: Advanced JavaScript"
+phase: 2
+passMark: 80
+timeLimitMinutes: 20
+questions:
+  - q: "What is logged?"
+    code: |
+      console.log(typeof a, typeof b);
+      var a = 1;
+      let b = 2;
+    options: ["undefined undefined", "number number", "undefined, then a ReferenceError", "A ReferenceError is thrown"]
+    answer: 3
+    explain: "`typeof a` is fine (`undefined`), but evaluating `typeof b` in its TDZ throws a ReferenceError before anything is logged. `typeof` is only safe for undeclared variables, not ones in the TDZ."
+
+  - q: "What is logged?"
+    code: |
+      for (var i = 0; i < 3; i++) {
+        setTimeout(() => console.log(i));
+      }
+    options: ["0 1 2", "3 3 3", "2 2 2", "undefined ×3"]
+    answer: 1
+    explain: "`var` is function-scoped, so all three callbacks close over the same `i`, which is 3 by the time they run."
+
+  - q: "What is the output order?"
+    code: |
+      console.log('A');
+      setTimeout(() => console.log('B'));
+      Promise.resolve().then(() => console.log('C'));
+      queueMicrotask(() => console.log('D'));
+      console.log('E');
+    options: ["A E C D B", "A E B C D", "A C D E B", "A E D C B"]
+    answer: 0
+    explain: "Synchronous code runs first (A, E). Then microtasks drain in FIFO order (C, D). Then the timer task runs (B)."
+
+  - q: "What is logged?"
+    code: |
+      async function f() {
+        console.log(1);
+        await null;
+        console.log(2);
+      }
+      f();
+      console.log(3);
+    options: ["1 2 3", "1 3 2", "3 1 2", "1 3, and 2 never logs"]
+    answer: 1
+    explain: "An async function runs synchronously until its first `await`. The rest is scheduled as a microtask, which runs after the current synchronous code."
+
+  - q: "In strict mode, what happens when this runs?"
+    code: |
+      const obj = { name: 'Ada', getName() { return this.name; } };
+      const fn = obj.getName;
+      fn();
+    options: ["'Ada'", "undefined", "It throws a TypeError", "''"]
+    answer: 2
+    explain: "Detaching the method loses the implicit binding, so `this` is `undefined` in strict mode. Accessing `undefined.name` throws a TypeError."
+
+  - q: "What is logged?"
+    code: |
+      const o = {
+        name: 'o',
+        arrow: () => typeof this,
+        regular() { return (() => this.name)(); },
+      };
+      console.log(o.regular());
+    options: ["undefined", "'o'", "A TypeError", "''"]
+    answer: 1
+    explain: "The arrow inside `regular` uses `regular`'s `this`, which is `o` because of the call `o.regular()`."
+
+  - q: "`function f(){ return this.x } ; const g = f.bind({x:1}).bind({x:2}); g()` returns:"
+    options: ["1", "2", "undefined", "TypeError"]
+    answer: 0
+    explain: "A bound function's `this` can't be re-bound. The first `bind` wins."
+
+  - q: "Which Promise combinator resolves with the first FULFILLED value and ignores rejections unless all reject?"
+    options: ["Promise.race", "Promise.all", "Promise.any", "Promise.allSettled"]
+    answer: 2
+    explain: "`Promise.any` resolves with the first fulfilment and rejects with an `AggregateError` only if every promise rejects. `race` settles with the first settlement, rejection or not."
+
+  - q: "Which array method does NOT mutate the original array?"
+    options: ["sort", "splice", "toSorted", "reverse"]
+    answer: 2
+    explain: "`toSorted`, `toReversed`, `toSpliced` and `with` are the ES2023 non-mutating counterparts."
+
+  - q: "What is `Object.is(NaN, NaN)` and `Object.is(0, -0)`?"
+    options: ["true, true", "true, false", "false, true", "false, false"]
+    answer: 1
+    explain: "`Object.is` treats NaN as equal to itself and distinguishes +0 from -0. React uses `Object.is` to compare state."
+
+  - q: "Why use a WeakMap rather than a Map for caching results keyed by DOM nodes?"
+    options: ["WeakMap is faster to iterate", "Entries don't prevent their keys from being garbage-collected", "WeakMap supports primitive keys", "WeakMap serialises to JSON"]
+    answer: 1
+    explain: "WeakMap holds its keys weakly. Once a node is removed and unreferenced, its entry can be collected, so the cache doesn't leak memory."
+
+  - q: "Which is the correct description of debounce vs throttle?"
+    options: ["Debounce runs at most once per interval; throttle waits for silence", "Debounce waits until calls stop for N ms; throttle runs at most once per N ms", "They are identical but debounce uses requestAnimationFrame", "Throttle cancels the final call; debounce keeps it"]
+    answer: 1
+    explain: "Debounce delays until activity stops (search input). Throttle rate-limits during continuous activity (scroll)."
+
+  - q: "What does this log?"
+    code: |
+      const a = { n: { v: 1 } };
+      const b = { ...a };
+      b.n.v = 2;
+      console.log(a.n.v);
+    options: ["1", "2", "undefined", "TypeError"]
+    answer: 1
+    explain: "Spread is a shallow copy. `b.n` and `a.n` are the same object."
+
+  - q: "In a class, where is the `#count` field accessible?"
+    code: |
+      class Counter { #count = 0; inc() { return ++this.#count; } }
+    options: ["Anywhere via counter['#count']", "Only inside the Counter class body", "In subclasses too", "Via Object.getOwnPropertyNames"]
+    answer: 1
+    explain: "Private fields are lexically scoped to the class body. Subclasses, bracket access and reflection can't see them."

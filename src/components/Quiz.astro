@@ -1,0 +1,219 @@
+---
+interface Question { q: string; code?: string; options: string[]; answer: number; explain: string; }
+interface Props {
+  id: string;
+  title: string;
+  passMark: number;
+  timeLimitMinutes: number;
+  questions: Question[];
+  sample?: number;
+}
+const { id, title, passMark, timeLimitMinutes, questions, sample } = Astro.props;
+const config = { id, title, passMark, timeLimitMinutes, questions, sample: sample ?? questions.length };
+const count = Math.min(config.sample, questions.length);
+---
+
+<section class="quiz" data-quiz>
+  <script type="application/json" data-quiz-config set:html={JSON.stringify(config).replace(/</g, '\\u003c')} />
+
+  <div data-screen="intro" class="card">
+    <p class="eyebrow">{count} questions · {timeLimitMinutes} min · pass mark {passMark}%</p>
+    <h2 style="margin-top:.4rem">Choose a mode</h2>
+    <ul>
+      <li><strong>Practice:</strong> untimed. See the answer and explanation after each question.</li>
+      <li><strong>Exam:</strong> timed. Answers are revealed only at the end, and the result counts towards your progress.</li>
+    </ul>
+    <p class="muted" data-best></p>
+    <div class="btn-row">
+      <button class="btn" type="button" data-start="exam">Start exam mode</button>
+      <button class="btn secondary" type="button" data-start="practice">Practice mode</button>
+    </div>
+  </div>
+
+  <div data-screen="question" hidden>
+    <div class="quiz-top">
+      <span class="qnum" data-counter></span>
+      <span class="timer" data-timer hidden></span>
+    </div>
+    <div class="quiz-progress" aria-hidden="true"><span data-bar style="width:0"></span></div>
+    <div class="card question">
+      <h3 data-q tabindex="-1"></h3>
+      <div data-code></div>
+      <div class="options" role="group" aria-label="Answer options" data-options></div>
+      <div class="explain" data-explain hidden aria-live="polite"></div>
+      <div class="btn-row">
+        <button class="btn" type="button" data-next disabled>Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <div data-screen="result" hidden>
+    <div class="card result" data-result>
+      <p class="eyebrow" data-result-label></p>
+      <div class="score" data-score></div>
+      <p data-result-msg></p>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn" type="button" data-retry>Try again</button>
+        <a class="btn secondary" data-back href="#">Back to phase</a>
+      </div>
+      <div class="review-list" data-review></div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { load, recordQuiz } from '../lib/progress';
+
+  type Q = { q: string; code?: string; options: string[]; answer: number; explain: string };
+  type Config = { id: string; title: string; passMark: number; timeLimitMinutes: number; questions: Q[]; sample: number };
+
+  const root = document.querySelector<HTMLElement>('[data-quiz]')!;
+  const config: Config = JSON.parse(root.querySelector('[data-quiz-config]')!.textContent!);
+  const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
+
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const fmt = (s: string) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  function shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  let mode: 'exam' | 'practice' = 'exam';
+  let questions: Q[] = [];
+  let index = 0;
+  let answers: number[] = [];
+  let timerHandle: number | undefined;
+
+  function show(screen: 'intro' | 'question' | 'result') {
+    root.querySelectorAll<HTMLElement>('[data-screen]').forEach((el) => (el.hidden = el.dataset.screen !== screen));
+  }
+
+  function paintBest() {
+    const r = load().quizzes[config.id];
+    $('[data-best]').textContent = r ? `Your best exam score: ${r.best}% (${r.attempts} attempt${r.attempts > 1 ? 's' : ''})${r.passed ? ' ✓ Passed' : ''}` : '';
+  }
+
+  function start(m: 'exam' | 'practice') {
+    mode = m;
+    // Shuffle question order and option order (remapping the answer index)
+    questions = shuffle(config.questions).slice(0, config.sample).map((q) => {
+      const order = shuffle(q.options.map((_, i) => i));
+      return { ...q, options: order.map((i) => q.options[i]), answer: order.indexOf(q.answer) };
+    });
+    index = 0;
+    answers = [];
+    show('question');
+    const timer = $('[data-timer]');
+    clearInterval(timerHandle);
+    timer.hidden = mode !== 'exam';
+    if (mode === 'exam') {
+      const end = Date.now() + config.timeLimitMinutes * 60_000;
+      const tick = () => {
+        const left = Math.max(0, end - Date.now());
+        const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
+        timer.textContent = `⏱ ${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+        timer.classList.toggle('low', left < 60_000);
+        if (left === 0) finish(true);
+      };
+      tick();
+      timerHandle = window.setInterval(tick, 1000);
+    }
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    const q = questions[index];
+    $('[data-counter]').textContent = `Question ${index + 1} of ${questions.length}`;
+    $('[data-bar]').style.width = `${(index / questions.length) * 100}%`;
+    const qEl = $('[data-q]');
+    qEl.innerHTML = fmt(q.q);
+    $('[data-code]').innerHTML = q.code ? `<pre class="code"><code>${esc(q.code.trimEnd())}</code></pre>` : '';
+    const explain = $('[data-explain]');
+    explain.hidden = true;
+    const next = $<HTMLButtonElement>('[data-next]');
+    next.disabled = true;
+    next.textContent = index === questions.length - 1 ? 'Finish' : 'Next →';
+
+    const opts = $('[data-options]');
+    opts.innerHTML = '';
+    q.options.forEach((text, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'option';
+      b.setAttribute('aria-pressed', 'false');
+      b.innerHTML = `<span class="letter">${String.fromCharCode(65 + i)}</span><span>${fmt(text)}</span>`;
+      b.addEventListener('click', () => choose(i));
+      opts.appendChild(b);
+    });
+    qEl.focus();
+  }
+
+  function choose(i: number) {
+    const q = questions[index];
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>('.option')];
+    if (mode === 'practice' && answers[index] !== undefined) return;
+    answers[index] = i;
+    buttons.forEach((b, j) => b.setAttribute('aria-pressed', String(j === i)));
+
+    if (mode === 'practice') {
+      buttons.forEach((b, j) => {
+        b.disabled = true;
+        if (j === q.answer) b.classList.add('correct');
+        else if (j === i) b.classList.add('wrong');
+      });
+      const explain = $('[data-explain]');
+      explain.innerHTML = `<strong>${i === q.answer ? '✓ Correct.' : '✗ Not quite.'}</strong> ${fmt(q.explain)}`;
+      explain.hidden = false;
+    } else {
+      buttons.forEach((b, j) => (b.style.borderColor = j === i ? 'var(--text)' : ''));
+    }
+    $<HTMLButtonElement>('[data-next]').disabled = false;
+  }
+
+  function finish(timedOut = false) {
+    clearInterval(timerHandle);
+    const correct = questions.reduce((n, q, i) => n + (answers[i] === q.answer ? 1 : 0), 0);
+    const score = Math.round((correct / questions.length) * 100);
+    const passed = score >= config.passMark;
+    if (mode === 'exam') recordQuiz(config.id, score, config.passMark);
+
+    const result = $('[data-result]');
+    result.classList.toggle('pass', passed);
+    result.classList.toggle('fail', !passed);
+    $('[data-result-label]').textContent = `${mode === 'exam' ? 'Exam' : 'Practice'} result${timedOut ? ' (time ran out)' : ''}`;
+    $('[data-score]').textContent = `${score}%`;
+    $('[data-result-msg]').textContent = `${correct} of ${questions.length} correct. ${passed ? 'Passed 🎉' : `You need ${config.passMark}% to pass, so review the explanations below and try again.`}`;
+
+    $('[data-review]').innerHTML = questions.map((q, i) => {
+      const ok = answers[i] === q.answer;
+      const yours = answers[i] === undefined ? '<em>No answer</em>' : fmt(q.options[answers[i]]);
+      return `<div class="review-item ${ok ? '' : 'miss'}">
+        <p><strong>${i + 1}. ${fmt(q.q)}</strong></p>
+        ${q.code ? `<pre class="code"><code>${esc(q.code.trimEnd())}</code></pre>` : ''}
+        ${ok ? '' : `<p>Your answer: ${yours}</p>`}
+        <p>${ok ? '✓' : '✗'} Correct answer: ${fmt(q.options[q.answer])}</p>
+        <p class="muted">${fmt(q.explain)}</p>
+      </div>`;
+    }).join('');
+    show('result');
+    paintBest();
+    $('[data-score]').scrollIntoView({ block: 'center' });
+  }
+
+  root.querySelectorAll<HTMLButtonElement>('[data-start]').forEach((b) =>
+    b.addEventListener('click', () => start(b.dataset.start as 'exam' | 'practice'))
+  );
+  $('[data-next]').addEventListener('click', () => {
+    if (index < questions.length - 1) { index++; renderQuestion(); }
+    else finish();
+  });
+  $('[data-retry]').addEventListener('click', () => { show('intro'); });
+  const back = $<HTMLAnchorElement>('[data-back]');
+  back.href = root.dataset.back || document.querySelector<HTMLAnchorElement>('.breadcrumbs a:nth-of-type(2)')?.href || '/';
+  paintBest();
+</script>

@@ -1,0 +1,80 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getLessons } from '../../lib/content';
+import { phaseById } from '../../data/phases';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const lessons = await getLessons();
+  return lessons.map((lesson, i) => ({
+    params: { id: lesson.id },
+    props: { lesson, prev: lessons[i - 1] ?? null, next: lessons[i + 1] ?? null },
+  }));
+}
+
+const { lesson, prev, next } = Astro.props;
+const { Content, headings } = await render(lesson);
+const phase = phaseById(lesson.data.phase);
+const toc = headings.filter((h) => h.depth === 2);
+const clean = (s: string) => s.replace(/`/g, '');
+---
+
+<Base title={clean(lesson.data.title)} description={lesson.data.summary}>
+  <div style={`--phase:${phase.color}`}>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href={url('/')}>Home</a> / <a href={url(`/phase/${phase.slug}/`)}>Phase {phase.id}</a>{' / '}
+      <span aria-current="page">{clean(lesson.data.title)}</span>
+    </nav>
+    <p class="eyebrow" style="margin-top:1rem">Week {lesson.data.week} · {lesson.data.duration}</p>
+    <h1 set:html={lesson.data.title.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+    <p class="lead">{lesson.data.summary}</p>
+
+    <div class="lesson-layout">
+      <article class="prose">
+        <Content />
+        <div class="btn-row" style="margin-top:2.5rem">
+          <button class="btn complete-btn" type="button" aria-pressed="false" data-complete={lesson.id}>
+            Mark lesson complete
+          </button>
+        </div>
+      </article>
+
+      <aside class="lesson-aside" aria-label="Lesson tools">
+        {toc.length > 0 && (
+          <div class="card">
+            <h4>On this page</h4>
+            <ul>{toc.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}</ul>
+          </div>
+        )}
+        {lesson.data.resources.length > 0 && (
+          <div class="card">
+            <h4>Official resources</h4>
+            <ul>{lesson.data.resources.map((r) => <li><a href={r.url} target="_blank" rel="noopener">{r.label}</a></li>)}</ul>
+          </div>
+        )}
+        <div class="card">
+          <h4>Assessment</h4>
+          <p><a href={url(`/quiz/${phase.id === 5 ? 'final' : `phase-${phase.id}`}/`)}>Take the Phase {phase.id} quiz →</a></p>
+        </div>
+      </aside>
+    </div>
+
+    <nav class="pager" aria-label="Lesson navigation">
+      {prev ? <a href={url(`/lessons/${prev.id}/`)}><small>← Previous</small>{clean(prev.data.title)}</a> : <span></span>}
+      {next ? <a href={url(`/lessons/${next.id}/`)} style="text-align:right"><small>Next →</small>{clean(next.data.title)}</a> : <span></span>}
+    </nav>
+  </div>
+
+  <script>
+    import { load, toggle } from '../../lib/progress';
+    const btn = document.querySelector<HTMLButtonElement>('[data-complete]')!;
+    const id = btn.dataset.complete!;
+    const paint = (done: boolean) => {
+      btn.setAttribute('aria-pressed', String(done));
+      btn.textContent = done ? '✓ Completed' : 'Mark lesson complete';
+    };
+    paint(!!load().lessons[id]);
+    btn.addEventListener('click', () => paint(toggle('lessons', id)));
+  </script>
+</Base>

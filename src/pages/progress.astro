@@ -1,0 +1,95 @@
+---
+import Base from '../layouts/Base.astro';
+import { phases } from '../data/phases';
+import { getLessons, getChallenges, getQuizzes } from '../lib/content';
+import { url } from '../lib/url';
+
+const lessons = await getLessons();
+const challenges = await getChallenges();
+const quizzes = await getQuizzes();
+const clean = (s: string) => s.replace(/`/g, '');
+---
+
+<Base title="My progress">
+  <p class="eyebrow">Dashboard</p>
+  <h1>My progress</h1>
+  <p class="lead">Saved in this browser only. Exam-mode quiz attempts and the lessons and challenges you mark complete are recorded here.</p>
+
+  <div class="stat-grid">
+    <div class="card"><strong data-stat="lessons">0</strong><span class="muted">of {lessons.length} lessons</span></div>
+    <div class="card"><strong data-stat="quizzes">0</strong><span class="muted">of {quizzes.length} quizzes passed</span></div>
+    <div class="card"><strong data-stat="challenges">0</strong><span class="muted">of {challenges.length} challenges passed</span></div>
+    <div class="card"><strong data-stat="overall">0%</strong><span class="muted">overall</span></div>
+  </div>
+
+  {phases.map((p) => {
+    const quizId = p.id === 5 ? 'final' : `phase-${p.id}`;
+    const quiz = quizzes.find((q) => q.id === quizId)!;
+    return (
+      <section style={`--phase:${p.color}`} aria-labelledby={`ph-${p.id}`}>
+        <div class="section-title"><h2 id={`ph-${p.id}`}>Phase {p.id}: {p.title}</h2></div>
+        <ul class="lesson-list">
+          {lessons.filter((l) => l.data.phase === p.id).map((l) => (
+            <li data-lesson={l.id}><a href={url(`/lessons/${l.id}/`)}><span class="num">L</span><span class="title">{clean(l.data.title)}</span><span class="tag" data-status>Not started</span></a></li>
+          ))}
+          <li data-quiz={quizId}><a href={url(`/quiz/${quizId}/`)}><span class="num">Q</span><span class="title">{quiz.data.title}</span><span class="tag" data-status>Not attempted</span></a></li>
+          {challenges.filter((c) => c.data.phase === p.id).map((c) => (
+            <li data-challenge={c.id}><a href={url(`/challenges/${c.id}/`)}><span class="num">C</span><span class="title">{c.data.title}</span><span class="tag" data-status>Not passed</span></a></li>
+          ))}
+        </ul>
+      </section>
+    );
+  })}
+
+  <div class="btn-row" style="margin-top:3rem">
+    <button class="btn secondary" type="button" data-export>Export progress (JSON)</button>
+    <button class="btn secondary" type="button" data-reset>Reset all progress</button>
+  </div>
+
+  <script>
+    import { load, reset } from '../lib/progress';
+    function paint() {
+      const p = load();
+      let done = 0, total = 0;
+      const count = { lessons: 0, quizzes: 0, challenges: 0 };
+      document.querySelectorAll<HTMLElement>('[data-lesson]').forEach((li) => {
+        const ok = !!p.lessons[li.dataset.lesson!];
+        li.classList.toggle('done', ok);
+        li.querySelector('[data-status]')!.textContent = ok ? 'Complete ✓' : 'Not started';
+        total++; if (ok) { done++; count.lessons++; }
+      });
+      document.querySelectorAll<HTMLElement>('[data-quiz]').forEach((li) => {
+        const r = p.quizzes[li.dataset.quiz!];
+        li.classList.toggle('done', !!r?.passed);
+        li.querySelector('[data-status]')!.textContent = r ? `Best ${r.best}%${r.passed ? ' ✓' : ''}` : 'Not attempted';
+        total++; if (r?.passed) { done++; count.quizzes++; }
+      });
+      document.querySelectorAll<HTMLElement>('[data-challenge]').forEach((li) => {
+        const ok = !!p.challenges[li.dataset.challenge!];
+        li.classList.toggle('done', ok);
+        li.querySelector('[data-status]')!.textContent = ok ? 'Passed ✓' : 'Not passed';
+        total++; if (ok) { done++; count.challenges++; }
+      });
+      (Object.keys(count) as (keyof typeof count)[]).forEach((k) => {
+        document.querySelector(`[data-stat="${k}"]`)!.textContent = String(count[k]);
+      });
+      document.querySelector('[data-stat="overall"]')!.textContent = `${Math.round((done / total) * 100)}%`;
+    }
+    paint();
+    window.addEventListener('fm-progress', paint);
+
+    document.querySelector('[data-reset]')!.addEventListener('click', (e) => {
+      const b = e.currentTarget as HTMLButtonElement;
+      if (b.dataset.confirm) { reset(); b.textContent = 'Reset all progress'; delete b.dataset.confirm; }
+      else { b.dataset.confirm = '1'; b.textContent = 'Click again to confirm reset'; }
+    });
+    document.querySelector('[data-export]')!.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(load(), null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'frontend-mastery-progress.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</Base>

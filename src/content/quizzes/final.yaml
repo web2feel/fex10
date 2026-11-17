@@ -1,0 +1,54 @@
+title: "Final Mock Exam: Section A"
+phase: 5
+passMark: 80
+timeLimitMinutes: 30
+questions:
+  - q: "What is logged?"
+    code: |
+      const p = new Promise((resolve) => {
+        console.log(1);
+        resolve();
+        console.log(2);
+      });
+      p.then(() => console.log(3));
+      console.log(4);
+    options: ["1 2 3 4", "1 2 4 3", "1 4 2 3", "4 1 2 3"]
+    answer: 1
+    explain: "The executor runs synchronously (1, 2), then sync code continues (4), then the `.then` microtask runs (3)."
+
+  - q: "Which CSS feature lets a card change layout based on the width of its parent column rather than the viewport?"
+    options: ["Media queries", "Container queries", "Subgrid", "clamp()"]
+    answer: 1
+    explain: "Declare `container-type: inline-size` on the parent and use `@container` rules."
+
+  - q: "A memoised child still re-renders on every parent render. Which prop is most likely the cause?"
+    code: |
+      <Chart data={data} options={{ animate: true }} onHover={handleHover} />
+    options: ["data", "options", "onHover only if it is wrapped in useCallback", "None; memo doesn't compare props"]
+    answer: 1
+    explain: "The inline object literal is a new reference every render. Hoist it or memoise it. (`onHover` could also be the cause if it isn't wrapped in `useCallback`.)"
+
+  - q: "Which reducer is correct (plain Redux, no Immer)?"
+    options: ["state.count++; return state;", "return { ...state, count: state.count + 1 };", "Object.assign(state, { count: state.count + 1 }); return state;", "state = { count: state.count + 1 };"]
+    answer: 1
+    explain: "Without Immer, reducers must return a new object and never mutate."
+
+  - q: "What is the result of `[1, 2, 3].map(parseInt)`?"
+    options: ["[1, 2, 3]", "[1, NaN, NaN]", "[NaN, NaN, NaN]", "[1, 2, NaN]"]
+    answer: 1
+    explain: "`map` passes (value, index), so the calls are parseInt(1, 0) → 1, parseInt(2, 1) → NaN (radix 1 is invalid) and parseInt(3, 2) → NaN ('3' isn't a binary digit)."
+
+  - q: "Which is the correct way to make an icon-only button accessible?"
+    options: ["<div class=\"btn\" onclick=\"close()\">✕</div>", "<button title=\"Close\">✕</button>", "<button aria-label=\"Close\"><svg aria-hidden=\"true\">…</svg></button>", "<button><img src=\"x.svg\"></button>"]
+    answer: 2
+    explain: "Use a native button with an accessible name via `aria-label`, and hide the decorative SVG from assistive technology."
+
+  - q: "Which of these should NOT be stored in Redux state?"
+    options: ["Normalised user entities", "Current filter selection", "A pending Promise object", "Theme preference"]
+    answer: 2
+    explain: "Redux state should be serialisable. Promises, class instances and functions break DevTools, persistence and the serialisability check."
+
+  - q: "What does `curry((a, b, c) => a + b + c)(1)(2, 3)` return, given a standard curry implementation?"
+    options: ["A function", "6", "NaN", "'123'"]
+    answer: 1
+    explain: "Curry collects arguments until it has `fn.length` (3) of them, then calls the function: 1 + 2 + 3 = 6."

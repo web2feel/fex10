@@ -1,0 +1,79 @@
+---
+import '../styles/global.css';
+import { url } from '../lib/url';
+import { phases } from '../data/phases';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'A 12-week advanced program for HTML, CSS, SCSS, JavaScript, React and Redux, with lessons and assessments.' } = Astro.props;
+const path = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href={url('/favicon.svg')} />
+    <title>{title} · Frontend Mastery</title>
+    <script is:inline>
+      try {
+        const t = localStorage.getItem('fm-theme');
+        if (t) document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href={url('/')}>
+          <span class="brand-mark" aria-hidden="true">{'</>'}</span>
+          Frontend Mastery
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav-list">
+            {phases.map((p) => (
+              <li>
+                <a
+                  href={url(`/phase/${p.slug}/`)}
+                  aria-current={path.includes(`/phase/${p.slug}`) ? 'page' : undefined}
+                  style={`--phase:${p.color}`}
+                >
+                  <span class="nav-num">{p.id}</span>
+                  <span class="nav-label">{p.short}</span>
+                </a>
+              </li>
+            ))}
+            <li><a href={url('/progress/')} aria-current={path.includes('/progress') ? 'page' : undefined}>Progress</a></li>
+          </ul>
+        </nav>
+        <button class="theme-toggle" type="button" aria-label="Toggle dark mode" data-theme-toggle>◐</button>
+      </div>
+    </header>
+
+    <main id="main" class="container">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <p>Frontend Mastery: an advanced HTML · CSS · SCSS · JS · React · Redux program. Progress is saved in your browser.</p>
+      </div>
+    </footer>
+
+    <script>
+      const btn = document.querySelector('[data-theme-toggle]');
+      btn?.addEventListener('click', () => {
+        const root = document.documentElement;
+        const current = root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const next = current === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try { localStorage.setItem('fm-theme', next); } catch {}
+      });
+    </script>
+  </body>
+</html>

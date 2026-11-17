@@ -1,0 +1,76 @@
+---
+import Base from '../../layouts/Base.astro';
+import { phases, type Phase } from '../../data/phases';
+import { getLessons, getChallenges, getQuizzes } from '../../lib/content';
+import { url } from '../../lib/url';
+
+export function getStaticPaths() {
+  return phases.map((p) => ({ params: { slug: p.slug }, props: { phase: p } }));
+}
+const { phase } = Astro.props as { phase: Phase };
+const lessons = await getLessons(phase.id);
+const challenges = await getChallenges(phase.id);
+const quizId = phase.id === 5 ? 'final' : `phase-${phase.id}`;
+const quiz = (await getQuizzes()).find((q) => q.id === quizId)!;
+const quizCount = phase.id === 5 ? 40 : quiz.data.questions.length;
+const quizTime = phase.id === 5 ? 30 : quiz.data.timeLimitMinutes;
+---
+
+<Base title={phase.title} description={phase.tagline}>
+  <div style={`--phase:${phase.color}`}>
+    <nav class="breadcrumbs" aria-label="Breadcrumb"><a href={url('/')}>Home</a> / <span aria-current="page">Phase {phase.id}</span></nav>
+    <p class="eyebrow" style="margin-top:1rem">Phase {phase.id} · {phase.weeks}</p>
+    <h1>{phase.title}</h1>
+    <p class="lead" set:html={phase.tagline.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+
+    <div class="section-title"><h2>Lessons</h2><span class="muted">{lessons.length} lessons</span></div>
+    <ol class="lesson-list">
+      {lessons.map((l, i) => (
+        <li data-lesson={l.id}>
+          <a href={url(`/lessons/${l.id}/`)}>
+            <span class="num">{i + 1}</span>
+            <span class="title">{l.data.title.replace(/`/g, '')}<span class="sub">{l.data.summary}</span></span>
+            <span class="tag">Week {l.data.week} · {l.data.duration}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+
+    <div class="section-title"><h2>{phase.id === 5 ? 'Final exam: Section A' : 'Phase quiz'}</h2></div>
+    <a class="card" href={url(`/quiz/${quizId}/`)} style="margin-top:1rem;display:block" data-quiz-card={quizId}>
+      <p class="eyebrow">Timed · {quizTime} min · pass {quiz.data.passMark}%</p>
+      <h3>{phase.id === 5 ? 'Final Mock Exam: 40 questions across all phases' : quiz.data.title}</h3>
+      <p>{quizCount} multiple-choice questions with explanations. <span data-quiz-status></span></p>
+    </a>
+
+    <div class="section-title"><h2>Coding challenges</h2><span class="muted">{challenges.length} graded</span></div>
+    <ol class="lesson-list">
+      {challenges.map((c, i) => (
+        <li data-challenge={c.id}>
+          <a href={url(`/challenges/${c.id}/`)}>
+            <span class="num">{String.fromCharCode(65 + i)}</span>
+            <span class="title">{c.data.title}<span class="sub">{c.data.summary}</span></span>
+            <span class={`tag ${c.data.difficulty}`}>{c.data.difficulty} · {c.data.timeLimit}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </div>
+
+  <script>
+    import { load } from '../../lib/progress';
+    const p = load();
+    document.querySelectorAll<HTMLElement>('[data-lesson]').forEach((li) => {
+      li.classList.toggle('done', !!p.lessons[li.dataset.lesson!]);
+    });
+    document.querySelectorAll<HTMLElement>('[data-challenge]').forEach((li) => {
+      li.classList.toggle('done', !!p.challenges[li.dataset.challenge!]);
+    });
+    const qc = document.querySelector<HTMLElement>('[data-quiz-card]');
+    if (qc) {
+      const r = p.quizzes[qc.dataset.quizCard!];
+      if (r) qc.querySelector('[data-quiz-status]')!.textContent =
+        `Best: ${r.best}% over ${r.attempts} attempt${r.attempts > 1 ? 's' : ''}${r.passed ? ' ✓ Passed' : ''}.`;
+    }
+  </script>
+</Base>

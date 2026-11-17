@@ -1,0 +1,94 @@
+---
+import Base from '../layouts/Base.astro';
+import { phases } from '../data/phases';
+import { getLessons, getChallenges, getQuizzes } from '../lib/content';
+import { url } from '../lib/url';
+
+const lessons = await getLessons();
+const challenges = await getChallenges();
+const quizzes = await getQuizzes();
+const totalQuestions = quizzes.reduce((n, q) => n + q.data.questions.length, 0);
+
+const phaseData = phases.map((p) => ({
+  ...p,
+  lessonIds: lessons.filter((l) => l.data.phase === p.id).map((l) => l.id),
+  challengeIds: challenges.filter((c) => c.data.phase === p.id).map((c) => c.id),
+  quizId: p.id === 5 ? 'final' : `phase-${p.id}`,
+}));
+const firstLesson = lessons[0];
+---
+
+<Base title="Home">
+  <section class="hero">
+    <p class="eyebrow">12-week advanced program</p>
+    <h1>Master the modern frontend, then prove it.</h1>
+    <p class="lead">
+      Structured lessons, timed quizzes and graded coding challenges across HTML, CSS, SCSS, JavaScript, React and Redux.
+      It ends with a capstone project and a three-part mock assessment.
+    </p>
+    <div class="btn-row">
+      <a class="btn" href={url(`/lessons/${firstLesson.id}/`)}>Start lesson 1 →</a>
+      <a class="btn secondary" href={url('/progress/')}>View my progress</a>
+    </div>
+    <div class="hero-stats">
+      <div><strong>{lessons.length}</strong><span>lessons</span></div>
+      <div><strong>{totalQuestions}</strong><span>quiz questions</span></div>
+      <div><strong>{challenges.length}</strong><span>coding challenges</span></div>
+      <div><strong>80%</strong><span>pass mark</span></div>
+    </div>
+  </section>
+
+  <div class="section-title"><h2>The program</h2><span class="muted">Each phase ends with an assessment</span></div>
+  <div class="grid" style="margin-top:1rem">
+    {phaseData.map((p) => (
+      <a
+        class="card phase-card"
+        href={url(`/phase/${p.slug}/`)}
+        style={`--phase:${p.color}`}
+        data-phase-card
+        data-lessons={JSON.stringify(p.lessonIds)}
+        data-challenges={JSON.stringify(p.challengeIds)}
+        data-quiz={p.quizId}
+      >
+        <p class="eyebrow">Phase {p.id} · {p.weeks}</p>
+        <h3>{p.title}</h3>
+        <p set:html={p.tagline.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+        <div class="meta">
+          <span>{p.lessonIds.length} lessons</span>
+          <span>1 quiz</span>
+          <span>{p.challengeIds.length} challenge{p.challengeIds.length === 1 ? '' : 's'}</span>
+          <span data-quiz-badge></span>
+        </div>
+        <div class="progress-bar" aria-hidden="true"><span></span></div>
+      </a>
+    ))}
+  </div>
+
+  <div class="section-title"><h2>How each week works</h2></div>
+  <div class="grid" style="margin-top:1rem">
+    <div class="card"><p class="eyebrow">1 · Learn</p><h3>Read the lesson</h3><p>Concise explanations, annotated code, common assessment traps and links to official docs.</p></div>
+    <div class="card"><p class="eyebrow">2 · Build</p><h3>Do the practice</h3><p>Each lesson ends with practice exercises. Mark the lesson complete when you've done them.</p></div>
+    <div class="card"><p class="eyebrow">3 · Assess</p><h3>Quiz + challenge</h3><p>A timed quiz (80% to pass) with explanations, then a graded coding challenge with a rubric.</p></div>
+  </div>
+
+  <script>
+    import { load } from '../lib/progress';
+    function paint() {
+      const p = load();
+      document.querySelectorAll<HTMLElement>('[data-phase-card]').forEach((card) => {
+        const lessons: string[] = JSON.parse(card.dataset.lessons!);
+        const challenges: string[] = JSON.parse(card.dataset.challenges!);
+        const quiz = p.quizzes[card.dataset.quiz!];
+        const done = lessons.filter((id) => p.lessons[id]).length
+          + challenges.filter((id) => p.challenges[id]).length
+          + (quiz?.passed ? 1 : 0);
+        const total = lessons.length + challenges.length + 1;
+        card.querySelector<HTMLElement>('.progress-bar > span')!.style.width = `${(done / total) * 100}%`;
+        const badge = card.querySelector<HTMLElement>('[data-quiz-badge]')!;
+        badge.textContent = quiz ? `Quiz best: ${quiz.best}%${quiz.passed ? ' ✓' : ''}` : '';
+      });
+    }
+    paint();
+    window.addEventListener('fm-progress', paint);
+  </script>
+</Base>

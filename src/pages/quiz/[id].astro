@@ -1,0 +1,46 @@
+---
+import Base from '../../layouts/Base.astro';
+import Quiz from '../../components/Quiz.astro';
+import { getQuizzes } from '../../lib/content';
+import { phaseById } from '../../data/phases';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const quizzes = await getQuizzes();
+  // The final exam draws 40 questions from every phase quiz plus its own pool.
+  const pool = quizzes.flatMap((q) => q.data.questions);
+  return quizzes.map((quiz) => ({
+    params: { id: quiz.id },
+    props: {
+      quiz,
+      questions: quiz.id === 'final' ? pool : quiz.data.questions,
+      sample: quiz.id === 'final' ? 40 : undefined,
+    },
+  }));
+}
+
+const { quiz, questions, sample } = Astro.props;
+const phase = phaseById(quiz.data.phase);
+---
+
+<Base title={quiz.data.title}>
+  <div style={`--phase:${phase.color}`}>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href={url('/')}>Home</a> / <a href={url(`/phase/${phase.slug}/`)}>Phase {phase.id}</a>{' / '}
+      <span aria-current="page">Quiz</span>
+    </nav>
+    <p class="eyebrow" style="margin-top:1rem">Assessment</p>
+    <h1>{quiz.data.title}</h1>
+    {quiz.id === 'final' && (
+      <p class="lead">40 questions drawn at random from a pool of {questions.length}, covering every phase. A new set is drawn on each attempt.</p>
+    )}
+    <Quiz
+      id={quiz.id}
+      title={quiz.data.title}
+      passMark={quiz.data.passMark}
+      timeLimitMinutes={quiz.data.timeLimitMinutes}
+      questions={questions}
+      sample={sample}
+    />
+  </div>
+</Base>

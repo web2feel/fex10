@@ -1,0 +1,92 @@
+title: "Phase 3 Quiz: React"
+phase: 3
+passMark: 80
+timeLimitMinutes: 20
+questions:
+  - q: "After one click, what is `count`?"
+    code: |
+      const [count, setCount] = useState(0);
+      function onClick() {
+        setCount(count + 1);
+        setCount(c => c + 1);
+        setCount(count + 1);
+      }
+    options: ["1", "2", "3", "0"]
+    answer: 0
+    explain: "The queue runs: replace with 0+1 → 1; updater 1+1 → 2; replace with 0+1 → 1. The last direct value wins, so the result is 1."
+
+  - q: "A parent component re-renders. By default, what happens to its child components?"
+    options: ["Only children whose props changed re-render", "All children re-render", "No children re-render", "Only memoised children re-render"]
+    answer: 1
+    explain: "By default React re-renders the whole subtree. `memo` opts a child out when its props are shallow-equal."
+
+  - q: "Why are array indexes problematic as keys in a list where items can be inserted at the top?"
+    options: ["React throws a warning and refuses to render", "State and DOM (e.g. input values) get associated with the wrong item", "Indexes are not unique", "It disables batching"]
+    answer: 1
+    explain: "Keys identify items across renders. Inserting at index 0 shifts every key, so component state and DOM stick to positions, not to the data."
+
+  - q: "What is the BEST way to reset a form's internal state when the `userId` prop changes?"
+    options: ["useEffect(() => reset(), [userId])", "Render <Form key={userId} />", "Store userId in a ref and compare during render", "Call window.location.reload()"]
+    answer: 1
+    explain: "A new `key` tells React it's a different component instance, so it remounts with fresh state and needs no effect."
+
+  - q: "Which effect has a race condition?"
+    code: |
+      useEffect(() => {
+        fetch(`/api/user/${id}`)
+          .then(r => r.json())
+          .then(setUser);
+      }, [id]);
+    options: ["None; dependencies are correct", "A slower response for an old id can arrive last and overwrite newer data", "It runs infinitely", "setUser is called during render"]
+    answer: 1
+    explain: "Without cleanup (an ignore flag or AbortController), out-of-order responses can set stale data."
+
+  - q: "What is wrong here?"
+    code: |
+      useEffect(() => {
+        const id = setInterval(() => setSeconds(seconds + 1), 1000);
+        return () => clearInterval(id);
+      }, []);
+    options: ["Nothing", "Stale closure: seconds is always the initial value, so it stops at 1", "The cleanup runs too early", "setInterval can't be used in effects"]
+    answer: 1
+    explain: "The callback captured `seconds` from the first render. Use `setSeconds(s => s + 1)`."
+
+  - q: "When does `useCallback` actually improve performance?"
+    options: ["Always: wrap every handler", "When the function is passed to a memo() child or used as an effect/memo dependency", "When the function is expensive to execute", "When the component has no props"]
+    answer: 1
+    explain: "`useCallback` only preserves identity. Identity matters only to consumers that compare it, such as `memo` props and dependency arrays."
+
+  - q: "A context provider's value is `{{ user, logout }}` created inline. What is the consequence?"
+    options: ["Nothing; context compares deeply", "Every consumer re-renders whenever the provider re-renders", "Consumers never update", "React throws in Strict Mode"]
+    answer: 1
+    explain: "A new object each render is a new value by `Object.is`, so all consumers re-render. Memoise the value or split the context."
+
+  - q: "Which statement about the React 19 `use()` API is TRUE?"
+    options: ["It must follow the Rules of Hooks strictly, including no conditionals", "It can be called conditionally and can read a Promise or Context", "It replaces useEffect", "It only works in Server Components"]
+    answer: 1
+    explain: "`use` is the one API that can be called conditionally or in loops. It unwraps promises (suspending) and reads context."
+
+  - q: "What does `useOptimistic` do?"
+    options: ["Caches server responses", "Shows a temporary state during an async action, then reverts to the real state when it settles", "Retries failed requests", "Prefetches data on hover"]
+    answer: 1
+    explain: "The optimistic state is shown while the action is pending. Afterwards React renders from the passed-in real state."
+
+  - q: "Which errors are caught by an Error Boundary?"
+    options: ["Errors in event handlers", "Errors in async callbacks like setTimeout", "Errors thrown during rendering of its child tree", "Errors thrown inside the boundary itself"]
+    answer: 2
+    explain: "Error boundaries catch errors during render, lifecycle methods and constructors of their descendants, but not in event handlers, async code or themselves."
+
+  - q: "In React Testing Library, which query should you use to assert an element is NOT present?"
+    options: ["getByText", "findByText", "queryByText", "getAllByText"]
+    answer: 2
+    explain: "`queryBy*` returns null instead of throwing, so `expect(queryByText(x)).not.toBeInTheDocument()` works."
+
+  - q: "Which RTL query has the highest priority according to Testing Library's guidance?"
+    options: ["getByTestId", "getByText", "getByRole", "container.querySelector"]
+    answer: 2
+    explain: "`getByRole` (with `name`) mirrors how assistive technology users find elements. Test IDs are the last resort."
+
+  - q: "What does Strict Mode do to effects in development?"
+    options: ["Disables them", "Runs setup → cleanup → setup once on mount to surface missing cleanup", "Runs them only once", "Runs them synchronously"]
+    answer: 1
+    explain: "Strict Mode deliberately re-runs effects (mount → unmount → mount) in development to reveal missing cleanup."
